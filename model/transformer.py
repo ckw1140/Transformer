@@ -11,6 +11,7 @@ import torch.nn.functional as F
 
 from model.utils import (
     gelu,
+    get_attention_decoder_mask,
     get_attention_pad_mask,
     get_sinusoid_encoding_table,
 )
@@ -224,8 +225,174 @@ class Encoder(nn.Module):
         )
         
         attention_probs = []
+
         for layer in self.layers:
             outputs, attention_prob = layer(outputs, attention_mask)
             attention_probs.append(attention_prob)
 
         return outputs, attention_probs
+
+
+class DecoderLayer(nn.Module):
+    def __init__(
+        self,
+        hidden_dim,
+        num_heads,
+        head_dim,
+        feed_forward_dim,
+        dropout_prob,
+        layer_norm_eps,
+    ):
+        super(DecoderLayer, self).__init__()
+
+        self.self_attention = MultiheadAttention(
+            hidden_dim=hidden_dim,
+            num_heads=num_heads,
+            head_dim=head_dim,
+            dropout_prob=dropout_prob,
+        )
+        self.layer_norm1 = nn.LayerNorm(hidden_dim, eps=layer_norm_eps)
+        self.dec_enc_attention = MultiheadAttention(
+            hidden_dim=hidden_dim,
+            num_heads=num_heads,
+            head_dim=head_dim,
+            dropout_prob=dropout_prob,
+        )
+        self.layer_norm2 = nn.LayerNorm(hidden_dim, eps=layer_norm_eps)
+        self.feed_forward = FeedForward(
+            hidden_dim=hidden_dim,
+            feed_forward_dim=feed_forward_dim,
+            dropout_prob=dropout_prob,
+        )
+        self.layer_norm3 = nn.LayerNorm(hidden_dim, eps=layer_norm_eps)
+
+    def forward(
+        self,
+        dec_inputs,
+        enc_outputs,
+        self_attention_mask,
+        dec_enc_attention_mask,
+    ):
+        residual = dec_inputs
+        outputs, self_attention_prob = self.self_attention(
+            query=dec_inputs,
+            key=dec_inputs,
+            value=dec_inputs,
+            attention_mask=self_attention_mask,
+        )
+        outputs = self.layer_norm1(outputs + residual)
+
+        residual = outputs
+        outputs, dec_enc_attention_prob = self.dec_enc_attention(
+            query=dec_inputs,
+            key=enc_outputs,
+            value=enc_outputs,
+            attention_mask=dec_enc_attention_mask,
+        )
+        outputs = self.layer_norm2(outputs + residual)
+
+        residual = outputs
+        outputs = self.feed_forward(outputs)
+        outputs = self.layer_norm3(outputs + residual)
+
+        return outputs, self_attention_prob, dec_enc_attention_prob
+
+
+class Decoder(nn.Module):
+    def __init__(
+        self,
+        sequence_length,
+        num_layers,
+        hidden_dim,
+        num_heads,
+        head_dim,
+        feed_forward_dim,
+        dropout_prob,
+        layer_norm_eps,
+    ):
+        super(Decoder, self).__init__()
+
+        self.embedding = nn.Embedding(VOCAB_SIZE, hidden_dim)
+        self.positional_encoding = nn.Embedding.from_pretrained(
+            torch.FloatTensor(
+                get_sinusoid_encoding_table(
+                    sequence_length=sequence_length + 1,
+                    hidden_dim=hidden_dim,
+                )
+            ),
+            freeze=True,
+        )
+        self.layers = nn.ModuleList(
+            [
+                DecoderLayer(
+                    hidden_dim=hidden_dim,
+                    num_heads=num_heads,
+                    head_dim=head_dim,
+                    feed_forward_dim=feed_forward_dim,
+                    dropout_prob=dropout_prob,
+                    layer_norm_eps=layer_norm_eps,
+                )
+                for _ in range(num_layers)
+            ]
+        )
+
+    def forward(
+        self,
+        dec_inputs,
+        enc_outputs,
+    ):
+        """
+        inputs: [batch_size, sequence_length]
+        """
+        batch_size = dec_inputs.size()[0]
+        sequence_length = dec_inputs.size()[1]
+
+        # position: [batch_size, sequence_length]
+        position = (
+            torch.arange(
+                sequence_length,
+                device=dec_inputs.device,
+                dtype=dec_inputs.dtype,
+            )
+            .expand(
+                batch_size,
+                sequence_length,
+            )
+            .contiguous()
+        )
+        position = position + 1
+
+        # outputs: [bacth_size, sequence_length, hidden_dim]
+        outputs = self.embedding(dec_inputs) + self.positional_encoding(position)
+
+        # self_attention_mask: [batch_size, sequence_length, sequence_length]
+        self_attention_pad_mask = get_attention_pad_mask(
+            key=dec_inputs,
+            pad_token=PAD_TOKEN,
+        )
+        self_attention_decoder_mask = get_attention_decoder_mask(
+            batch_size=batch_size,
+            sequence_length=sequence_length,
+        )
+        self_attention_mask = torch.gt(self_attention_pad_mask + self_attention_decoder_mask, 0)
+
+        # dec_enc_attention_mask: [batch_size, sequence_length, sequence_length]
+        dec_enc_attention_mask = get_attention_pad_mask(
+            key=dec_inputs,
+            pad_token=PAD_TOKEN,
+        )
+        
+        self_attention_probs = []
+        dec_enc_attention_probs = []
+
+        for layer in self.layers:
+            outputs, self_attention_prob, dec_enc_attention_prob = layer(
+                dec_inputs=outputs,
+                enc_outputs=enc_outputs,
+                self_attention_mask=self_attention_mask,
+                dec_enc_attention_mask=dec_enc_attention_mask,
+            )
+            self_attention_probs.append(self_attention_prob)
+            dec_enc_attention_probs.append(dec_enc_attention_prob)
+
+        return outputs, self_attention_probs, dec_enc_attention_probs

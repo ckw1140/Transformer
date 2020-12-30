@@ -38,3 +38,9 @@ def get_attention_pad_mask(key, pad_token):
     sequence_length = key.size()[1]
 
     return key.data.eq(pad_token).unsqueeze(1).expand(batch_size, sequence_length, sequence_length)
+
+
+def get_attention_decoder_mask(batch_size, sequence_length):
+    mask = 1 - torch.triu(torch.ones(sequence_length, sequence_length)).long().T
+    mask = mask.unsqueeze(0)
+    return mask.expand(batch_size, sequence_length, sequence_length)
