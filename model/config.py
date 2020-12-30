@@ -24,16 +24,17 @@ class Config:
         self.feed_forward_dim = feed_forward_dim
         self.dropout_prob = dropout_prob
         self.layer_norm_eps = layer_norm_eps
+        self.num_classes = num_classes
 
     @classmethod
-    def from_dict(cls: Type[T], dict_object: Dict[str, Any], **kwargs) -> T:
+    def from_dict(cls, dict_object, **kwargs):
         dict_object.update(kwargs)
         return cls(**dict_object)
 
     @classmethod
-    def from_json(cls: Type[T], json_file_path: str, **kwargs) -> T:
+    def from_json(cls, json_file_path, **kwargs):
         with open(json_file_path, "r", encoding="utf-8") as f:
             return cls.from_dict(json.load(f), **kwargs)
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self):
         return deepcopy(self.__dict__)
