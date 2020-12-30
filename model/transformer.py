@@ -339,6 +339,7 @@ class Decoder(nn.Module):
     def forward(
         self,
         dec_inputs,
+        enc_inputs,
         enc_outputs,
     ):
         """
@@ -378,7 +379,7 @@ class Decoder(nn.Module):
 
         # dec_enc_attention_mask: [batch_size, sequence_length, sequence_length]
         dec_enc_attention_mask = get_attention_pad_mask(
-            key=dec_inputs,
+            key=enc_inputs,
             pad_token=PAD_TOKEN,
         )
         
@@ -396,3 +397,61 @@ class Decoder(nn.Module):
             dec_enc_attention_probs.append(dec_enc_attention_prob)
 
         return outputs, self_attention_probs, dec_enc_attention_probs
+
+
+class Transformer(nn.Module):
+    def __init__(
+        self,
+        sequence_length,
+        num_layers,
+        hidden_dim,
+        num_heads,
+        head_dim,
+        feed_forward_dim,
+        dropout_prob,
+        layer_norm_eps,
+    ):
+        super(Transformer, self).__init__()
+
+        self.encoder = Encoder(
+            sequence_length=sequence_length,
+            num_layers=num_layers,
+            hidden_dim=hidden_dim,
+            num_heads=num_heads,
+            head_dim=head_dim,
+            feed_forward_dim=feed_forward_dim,
+            dropout_prob=dropout_prob,
+            layer_norm_eps=layer_norm_eps,
+        )
+
+        self.decoder = Decoder(
+            sequence_length=sequence_length,
+            num_layers=num_layers,
+            hidden_dim=hidden_dim,
+            num_heads=num_heads,
+            head_dim=head_dim,
+            feed_forward_dim=feed_forward_dim,
+            dropout_prob=dropout_prob,
+            layer_norm_eps=layer_norm_eps,
+        )
+
+    def forward(
+        self,
+        enc_inputs,
+        dec_inputs,
+    ):
+        enc_outputs, enc_self_attention_probs = self.encoder(
+            inputs=enc_inputs,
+        )
+        dec_outputs, dec_self_attention_probs, dec_enc_attention_probs = self.decoder(
+            dec_inputs=dec_inputs,
+            enc_inputs=enc_inputs,
+            enc_outputs=enc_outputs,
+        )
+
+        return (
+            dec_outputs,
+            enc_self_attention_probs,
+            dec_self_attention_probs,
+            dec_enc_attention_probs,
+        )
