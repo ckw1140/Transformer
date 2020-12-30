@@ -9,7 +9,7 @@ from model.utils import (
     get_sinusoid_encoding_table,
 )
 
-VOCAB_SIZE = 32000
+VOCAB_SIZE = 8008
 PAD_TOKEN = 0
 
 
