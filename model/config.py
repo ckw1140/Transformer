@@ -14,6 +14,7 @@ class Config:
         feed_forward_dim,
         dropout_prob,
         layer_norm_eps,
+        num_classes,
     ):
         self.sequence_length = sequence_length
         self.num_layers = num_layers
