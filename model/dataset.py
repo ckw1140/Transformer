@@ -16,8 +16,9 @@ class MovieDataset(torch.utils.data.Dataset):
             line_cnt = 0
             for line in f:
                 line_cnt += 1
-            
-            for i, line in enumerate(tqdm(f, total=line_cnt, desc=f"Loading {path}", unit=" lines")):
+
+        with open(path, "r") as f:
+            for i, line in enumerate(tqdm.tqdm(f, total=line_cnt, desc=f"Loading {path}", unit=" lines")):
                 data = json.loads(line)
                 self.labels.append(data["label"])
                 self.sentences.append([vocab.piece_to_id(p) for p in data["doc"]])
