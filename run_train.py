@@ -29,14 +29,16 @@ def train_epoch(
     model,
     criterion,
     optimizer,
+    scheduler,
     train_loader,
+    device,
 ):
     model.train()
     losses = []
 
     with tqdm.tqdm(total=len(train_loader), desc=f"Train {epoch}") as pbar:
         for i, value in enumerate(train_loader):
-            labels, enc_inputs, dec_inputs = map(lambda v: v.to(DEVICE), value)
+            labels, enc_inputs, dec_inputs = map(lambda v: v.to(device), value)
 
             optimizer.zero_grad()
             outputs = model(enc_inputs, dec_inputs)
@@ -100,6 +102,7 @@ def main(args):
         layer_norm_eps=model_config.layer_norm_eps,
         num_classes=model_config.num_classes,
     )
+    model.to(DEVICE)
 
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -141,7 +144,9 @@ def main(args):
             model=model,
             criterion=criterion,
             optimizer=optimizer,
+            scheduler=scheduler,
             train_loader=train_loader,
+            device=DEVICE,
         )
 
 

@@ -363,11 +363,13 @@ class Decoder(nn.Module):
         self_attention_pad_mask = get_attention_pad_mask(
             key=dec_inputs,
             pad_token=PAD_TOKEN,
-        )
+        ).to(dec_inputs.device)
+
         self_attention_decoder_mask = get_attention_decoder_mask(
             batch_size=batch_size,
             sequence_length=sequence_length,
-        )
+        ).to(dec_inputs.device)
+        
         self_attention_mask = torch.gt(self_attention_pad_mask + self_attention_decoder_mask, 0)
 
         # dec_enc_attention_mask: [batch_size, sequence_length, sequence_length]
