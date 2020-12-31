@@ -1,0 +1,8 @@
+{
+    "epoch": 20,
+    "batch_size": 512,
+    "weight_decay": 0,
+    "learning_rate": 5e-5,
+    "adam_epsilon": 1e-8,
+    "num_warmup_steps": 0
+}
