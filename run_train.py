@@ -23,6 +23,7 @@ parser.add_argument("--train-data-path", type=str)
 parser.add_argument("--test-data-path", type=str)
 # fmt: on
 
+
 def train_epoch(
     epoch,
     model,
@@ -32,14 +33,14 @@ def train_epoch(
 ):
     model.train()
     losses = []
-    
+
     with tqdm.tqdm(total=len(train_loader), desc=f"Train {epoch}") as pbar:
         for i, value in enumerate(train_loader):
             labels, enc_inputs, dec_inputs = map(lambda v: v.to(DEVICE), value)
 
             optimizer.zero_grad()
             outputs = model(enc_inputs, dec_inputs)
-            
+
             loss = criterion(outputs, labels)
             loss_val = loss.item()
             losses.append(loss_val)
@@ -54,9 +55,7 @@ def train_epoch(
     return np.mean(losses)
 
 
-def eval_epoch(
-
-):
+def eval_epoch():
     pass
 
 
@@ -107,11 +106,19 @@ def main(args):
     no_decay = ["bias", "LayerNorm.weight"]
     param_groups = [
         {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if not any(nd in n for nd in no_decay)
+            ],
             "weight_decay": train_config.weight_decay,
         },
         {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
             "weight_decay": 0.0,
         },
     ]
@@ -136,7 +143,6 @@ def main(args):
             optimizer=optimizer,
             train_loader=train_loader,
         )
-
 
 
 if __name__ == "__main__":
