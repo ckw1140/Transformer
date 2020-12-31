@@ -21,6 +21,7 @@ parser.add_argument("--train-config-path", type=str)
 parser.add_argument("--vocab-path", type=str)
 parser.add_argument("--train-data-path", type=str)
 parser.add_argument("--test-data-path", type=str)
+parser.add_argument("--save-path", type=str)
 # fmt: on
 
 
@@ -57,8 +58,32 @@ def train_epoch(
     return np.mean(losses)
 
 
-def eval_epoch():
-    pass
+def eval_epoch(
+    epoch,
+    model,
+    test_loader,
+    device,
+):
+    matchs = []
+    model.eval()
+
+    with tqdm.tqdm(total=len(test_loader), desc="Valid") as pbar:
+        for i, value in enumerate(test_loader):
+            labels, enc_inputs, dec_inputs = map(lambda v: v.to(device), value)
+
+            # outputs: [batch_size, num_classes]
+            with torch.no_grad():
+                outputs = model(enc_inputs, dec_inputs)
+                _, indices = outputs.max(1)
+
+            match = torch.eq(indices, labels).detach()
+            matchs.extend(match.cpu())
+            accuracy = np.sum(matchs) / len(matchs)
+
+            pbar.update(1)
+            pbar.set_postfix_str(f"Accuracy: {accuracy:.3f}")
+
+    return np.sum(matchs) / len(matchs)
 
 
 def main(args):
@@ -138,6 +163,10 @@ def main(args):
         num_training_steps=num_training_steps,
     )
 
+    best_epoch = 0
+    best_loss = 0
+    best_score = 0
+
     for epoch in tqdm.trange(train_config.epoch, desc="Epoch"):
         loss = train_epoch(
             epoch=epoch,
@@ -148,6 +177,18 @@ def main(args):
             train_loader=train_loader,
             device=DEVICE,
         )
+        score = eval_epoch(
+            epoch=epoch,
+            model=model,
+            test_loader=test_loader,
+            device=DEVICE,
+        )
+
+        if best_score < score:
+            best_epoch, best_loss, best_score = epoch, loss, score
+            model.save(best_epoch, best_loss, best_score, args.save_path)
+
+            print(f"Best Epoch: {best_epoch}\nBest Loss: {best_loss}\nBest Score {best_score}")
 
 
 if __name__ == "__main__":
