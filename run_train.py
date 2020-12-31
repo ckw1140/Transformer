@@ -8,7 +8,7 @@ import tqdm
 
 import config
 import optimization as optim
-from model.dataset import movie_collate_fn, MovieDataset
+from model.dataset import MovieDataset, movie_collate_fn
 from model.movie_classification import MovieClassification
 
 DEVICE = None
