@@ -186,7 +186,7 @@ def main(args):
 
         if best_score < score:
             best_epoch, best_loss, best_score = epoch, loss, score
-            model.save(best_epoch, best_loss, best_score, args.save_path)
+            model.save(args.save_path)
 
             print(f"Best Epoch: {best_epoch}\nBest Loss: {best_loss}\nBest Score {best_score}")
 
