@@ -62,9 +62,9 @@ class MultiheadAttention(nn.Module):
         # attention_result: [batch_size, num_heads, sequence_length, head_dim]
         attention_result = torch.matmul(attention_prob, V)
 
-        # attention_result: [batch_size, sequence_length, hidden_dim]
+        # attention_result: [batch_size, sequence_length, num_heads * head_dim]
         attention_result = attention_result.transpose(1, 2).contiguous()
-        attention_result = attention_result.view(batch_size, -1, self.hidden_dim)
+        attention_result = attention_result.view(batch_size, -1, self.num_heads * self.head_dim)
 
         outputs = self.W_o(attention_result)
         return outputs, attention_prob
