@@ -48,7 +48,14 @@ class MovieClassification(nn.Module):
         return outputs
     
     def save(self, epoch, loss, score, path):
-        pass
-
+        torch.save({
+            "epoch": epoch,
+            "loss": loss,
+            "score": score,
+            "state_dict": self.state_dict()
+        }, path)
+    
     def load(self, path):
-        pass
+        save = torch.load(path)
+        self.load_state_dict(save["state_dict"])
+        return save["epoch"], save["loss"], save["score"]
